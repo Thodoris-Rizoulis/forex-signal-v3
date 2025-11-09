@@ -1,5 +1,5 @@
 // API service for communicating with the backend
-const API_BASE_URL = import.meta.env.DEV ? "http://localhost:3000" : "";
+const API_BASE_URL = "";
 
 export interface HistoricalOpportunity {
   id: number;
