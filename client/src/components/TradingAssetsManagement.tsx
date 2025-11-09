@@ -94,8 +94,8 @@ export function TradingAssetsManagement() {
     try {
       setLoading(true);
       const [currenciesResponse, pairsResponse] = await Promise.all([
-        fetch("http://localhost:3000/api/currencies"),
-        fetch("http://localhost:3000/api/pairs"),
+        fetch("/api/currencies"),
+        fetch("/api/pairs"),
       ]);
 
       if (!currenciesResponse.ok) throw new Error("Failed to fetch currencies");
@@ -117,7 +117,7 @@ export function TradingAssetsManagement() {
     try {
       setLoadingAvailable(true);
       const response = await fetch(
-        "http://localhost:3000/api/currencies/available"
+        "/api/currencies/available"
       );
       if (!response.ok) throw new Error("Failed to fetch available currencies");
       const data = await response.json();
@@ -147,8 +147,8 @@ export function TradingAssetsManagement() {
 
     try {
       const url = editingCurrency
-        ? `http://localhost:3000/api/currencies/${editingCurrency.id}`
-        : "http://localhost:3000/api/currencies";
+        ? `/api/currencies/${editingCurrency.id}`
+        : "/api/currencies";
 
       const method = editingCurrency ? "PUT" : "POST";
 
@@ -185,7 +185,7 @@ export function TradingAssetsManagement() {
   const handleCurrencyDelete = async (id: number) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/api/currencies/${id}`,
+        `/api/currencies/${id}`,
         {
           method: "DELETE",
         }
@@ -207,8 +207,8 @@ export function TradingAssetsManagement() {
 
     try {
       const url = editingPair
-        ? `http://localhost:3000/api/pairs/${editingPair.id}`
-        : "http://localhost:3000/api/pairs";
+        ? `/api/pairs/${editingPair.id}`
+        : "/api/pairs";
 
       const method = editingPair ? "PUT" : "POST";
 
@@ -267,7 +267,7 @@ export function TradingAssetsManagement() {
 
   const handlePairDelete = async (id: number) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/pairs/${id}`, {
+      const response = await fetch(`/api/pairs/${id}`, {
         method: "DELETE",
       });
 

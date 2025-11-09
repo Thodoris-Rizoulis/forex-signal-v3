@@ -69,7 +69,7 @@ export function StrategiesManagement() {
   const loadStrategies = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:3000/api/strategies");
+      const response = await fetch("/api/strategies");
       if (!response.ok) throw new Error("Failed to fetch strategies");
       const data = await response.json();
 
@@ -95,8 +95,8 @@ export function StrategiesManagement() {
 
     try {
       const url = editingStrategy
-        ? `http://localhost:3000/api/strategies/${editingStrategy.id}`
-        : "http://localhost:3000/api/strategies";
+        ? `/api/strategies/${editingStrategy.id}`
+        : "/api/strategies";
 
       const method = editingStrategy ? "PUT" : "POST";
 
@@ -148,7 +148,7 @@ export function StrategiesManagement() {
   const handleDelete = async (id: number) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/api/strategies/${id}`,
+        `/api/strategies/${id}`,
         {
           method: "DELETE",
         }
