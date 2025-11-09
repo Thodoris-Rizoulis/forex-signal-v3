@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+:root {
+  /* Professional Forex Theme - Light Mode */
+  --color-background: hsl(210 17% 98%);
+  --color-foreground: hsl(215 25% 27%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(215 25% 27%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(215 25% 27%);
+  --color-primary: hsl(215 100% 50%); /* Professional blue */
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(215 15% 95%);
+  --color-secondary-foreground: hsl(215 25% 27%);
+  --color-muted: hsl(215 15% 95%);
+  --color-muted-foreground: hsl(215 13% 50%);
+  --color-accent: hsl(215 15% 95%);
+  --color-accent-foreground: hsl(215 25% 27%);
+  --color-destructive: hsl(0 70% 55%); /* Professional red for sell/loss */
+  --color-destructive-foreground: hsl(0 0% 100%);
+  --color-border: hsl(215 20% 90%);
+  --color-input: hsl(215 20% 90%);
+  --color-ring: hsl(215 100% 50%);
+  --radius: 0.75rem;
+
+  /* Custom Forex Colors */
+  --color-profit: hsl(142 70% 45%); /* Green for profits/buy signals */
+  --color-loss: hsl(0 70% 55%); /* Red for losses/sell signals */
+  --color-warning: hsl(43 96% 56%); /* Gold for warnings/neutral */
+  --color-chart-bg: hsl(215 25% 8%); /* Dark background for charts */
+  --color-sidebar: hsl(215 28% 17%); /* Dark sidebar */
+}
+.dark {
+  /* Professional Forex Theme - Dark Mode */
+  --color-background: hsl(215 28% 10%);
+  --color-foreground: hsl(213 31% 91%);
+  --color-card: hsl(215 25% 12%);
+  --color-card-foreground: hsl(213 31% 91%);
+  --color-popover: hsl(215 25% 12%);
+  --color-popover-foreground: hsl(213 31% 91%);
+  --color-primary: hsl(213 100% 65%); /* Brighter blue for dark mode */
+  --color-primary-foreground: hsl(215 28% 10%);
+  --color-secondary: hsl(215 25% 16%);
+  --color-secondary-foreground: hsl(213 31% 91%);
+  --color-muted: hsl(215 25% 16%);
+  --color-muted-foreground: hsl(215 20% 65%);
+  --color-accent: hsl(215 25% 16%);
+  --color-accent-foreground: hsl(213 31% 91%);
+  --color-destructive: hsl(0 65% 58%); /* Softer red for dark mode */
+  --color-destructive-foreground: hsl(0 0% 100%);
+  --color-border: hsl(215 25% 18%);
+  --color-input: hsl(215 25% 18%);
+  --color-ring: hsl(213 100% 65%);
+
+  /* Custom Forex Colors - Dark Mode */
+  --color-profit: hsl(142 65% 55%); /* Brighter green for dark mode */
+  --color-loss: hsl(0 65% 58%); /* Softer red for dark mode */
+  --color-warning: hsl(43 90% 65%); /* Brighter gold for dark mode */
+  --color-chart-bg: hsl(215 25% 8%); /* Even darker for charts */
+  --color-sidebar: hsl(215 28% 17%); /* Dark sidebar */
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+      Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-display: swap;
+    margin: 0;
+    min-height: 100vh;
+  }
+}
+
+/* Professional Forex Styling */
+.forex-card {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  backdrop-filter: blur(4px);
+}
+
+.forex-card-premium {
+  background: linear-gradient(
+    to bottom right,
+    var(--color-card),
+    var(--color-card),
+    var(--color-muted)
+  );
+  border: 2px solid hsl(215 100% 50% / 0.2);
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -2px rgb(0 0 0 / 0.05);
+  backdrop-filter: blur(4px);
+}
+
+.signal-buy {
+  @apply bg-green-50 border-green-200 text-green-800;
+}
+
+.signal-sell {
+  @apply bg-red-50 border-red-200 text-red-800;
+}
+
+.signal-neutral {
+  @apply bg-amber-50 border-amber-200 text-amber-800;
+}
+
+.price-display {
+  @apply font-mono text-lg font-semibold;
+}
+
+.profit-text {
+  @apply text-green-600 font-medium;
+}
+
+.loss-text {
+  @apply text-red-600 font-medium;
+}
+
+.neutral-text {
+  @apply text-amber-600 font-medium;
+}
+
+/* Dark mode adjustments */
+.dark .signal-buy {
+  @apply bg-green-950 border-green-800 text-green-200;
+}
+
+.dark .signal-sell {
+  @apply bg-red-950 border-red-800 text-red-200;
+}
+
+.dark .signal-neutral {
+  @apply bg-amber-950 border-amber-800 text-amber-200;
+}
+
+.dark .profit-text {
+  @apply text-green-400;
+}
+
+.dark .loss-text {
+  @apply text-red-400;
+}
+
+.dark .neutral-text {
+  @apply text-amber-400;
+}
+
+/* Custom dialog overlay for better visibility */
+[data-radix-dialog-overlay] {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+  backdrop-filter: blur(2px);
+}

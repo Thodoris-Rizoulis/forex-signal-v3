@@ -1,0 +1,25 @@
+# Forex Signal v3 – Copilot Notes
+
+- **Stack Overview**: Express/TypeScript backend in src/, React + Vite frontend in client/, PostgreSQL via pg with lightweight SQL models.
+- **Server Entry**: src/app.ts boots Express, ensures tables, wires REST routes, attaches the singleton WebSocket service, and immediately starts background workers.
+- **Background Loops**: dataFetcher, dataRetention, runTrendDetector, runConsolidationService, and runConsolidationBreakoutService all schedule setInterval jobs—factor that into tests and prefer calling service methods directly when you need deterministic behavior.
+- **Schema Bootstrap**: src/dbInit.ts creates the signal_type_enum and all tables (Currencies, Pairs, Strategies, Rates, Opportunities, Consolidations, Logs) on startup; there are no migration files, so schema changes live here.
+- **Config Source**: src/config/index.ts reads dotenv—set DB_HOST/PORT/USER/PASS/NAME, FASTFOREX_API_KEY, FETCH_INTERVAL (sec), trend/consolidation intervals (ms), LOG_TO_CONSOLE, etc., before running npm start.
+- **Logging**: utils/logger.ts defaults to a pino stream that persists into the Logs table; set LOG_TO_CONSOLE=true when the database logger table is unavailable.
+- **Market Data Flow**: services/dataFetcher.ts groups pairs by base currency, hits https://api.fastforex.io/fetch-multi, and bulk inserts via Rate.createMany—missing FASTFOREX_API_KEY will surface as logged errors but the loop keeps running.
+- **Pair State**: models/Pair.ts exposes getActive/update logic; TrendDetectorService updates trend flags, direction, strength, and timestamps directly on the Pairs table.
+- **Trend Detection**: services/TrendDetectorService.ts builds multi-timeframe candles (1h/4h) via utils/candleUtils.ts, extends lookback windows until it has enough data, and applies EMA/RSI/MACD/ADX with hysteresis from config.trend.\*.
+- **Candle Aggregation**: utils/candleUtils.ts aggregates raw Rates into candles aligned to hour boundaries, filters flat weekend periods, and derives ATR; keep FETCH_INTERVAL aligned with actual rate ingestion frequency.
+- **Consolidation Tracking**: services/ConsolidationService.ts uses ZigZag algorithm to identify swing points, extract support/resistance levels, find consolidation periods, and analyze breakout quality with ATR ratio, RSI, and MACD validation.
+- **Breakout Signals**: services/ConsolidationBreakoutService.ts filters consolidations that ended >1h ago, validates session quality (utils/sessionUtils.ts), volume proxies, momentum, ATR strength, then creates Opportunities and immediately broadcasts via webSocketService.broadcastOpportunity.
+- **Opportunities**: models/Opportunity.ts inserts rows and emits the same payload over WebSocket; REST endpoints default to filtering pending evaluations out unless explicitly requested.
+- **Testing Hooks**: routes/testing.ts and services/TestingService.ts let you replay trend/consolidation logic over historical windows without mutating DB state—use POST /api/test/trend or /api/test/consolidation when tuning indicators.
+- **REST Surface**: routes/\* mount under /api—opportunities, rates (including /api/rates/timeseries/:pairId), strategies, currencies, pairs, and a basic /api/health ping.
+- **WebSocket Contract**: Client connects to ws://localhost:3000 (dev), expects messages shaped as { type: "new_opportunity", data: {...} }; see client/src/hooks/useWebSocket.ts and components/OpportunitiesList.tsx for rendering assumptions.
+- **Frontend Data**: client/src/services/api.ts fetches REST resources and exposes helpers for history, rate tables, and testing endpoints; remember import.meta.env.DEV rewrites the base URL.
+- **UI System**: client/src/components/ui holds shadcn-style primitives used across Layout, History, StrategiesManagement, etc., all Tailwind-driven (see tailwind.config.js and src/index.css for theming tokens).
+- **Local Setup**: Run docker/docker-compose.yml to provision Postgres + pgAdmin with the expected forex_user/forex_pass credentials before starting the backend.
+- **Backend Commands**: From repo root npm install; npm start (ts-node) boots everything—be ready for immediate API polling unless you guard services manually.
+- **Frontend Commands**: cd client; npm install; npm run dev starts Vite on port 5173 with Tailwind pipelines; build via npm run build which runs tsc -b.
+- **Intervals & Load**: Tweak FETCH*INTERVAL, TREND_DETECTOR_INTERVAL, CONSOLIDATION*\* intervals in .env to avoid rate limits or speed up local testing; dataRetention truncates Rates older than 30 days once every 24h.
+- **Deployment Notes**: For production, expose port 3000 for both REST and WebSocket traffic, ensure Cron-style jobs survive restarts (they rely on in-process timers), and provide a persistent Postgres volume as defined in docker-compose.
