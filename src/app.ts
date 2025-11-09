@@ -16,6 +16,7 @@ import testingRouter from "./routes/testing";
 import consolidationsRouter from "./routes/consolidations";
 import { webSocketService } from "./services/webSocketService";
 import { runConsolidationService } from "./services/ConsolidationService";
+import path from "path";
 
 const app = express();
 const PORT = config.server.port;
@@ -32,6 +33,14 @@ app.use("/api/opportunities", opportunitiesRouter);
 app.use("/api/rates", ratesRouter);
 app.use("/api/test", testingRouter);
 app.use("/api/consolidations", consolidationsRouter);
+
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, "../client/dist")));
+
+// Catch all handler: send back React's index.html file for any non-API routes
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../client/dist/index.html"));
+});
 
 async function startServer() {
   const logger = createLogger("app");
