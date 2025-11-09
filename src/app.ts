@@ -38,7 +38,7 @@ app.use("/api/consolidations", consolidationsRouter);
 app.use(express.static(path.join(__dirname, "../client/dist")));
 
 // Catch all handler: send back React's index.html file for any non-API routes
-app.get("*", (req, res) => {
+app.get("/*", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/dist/index.html"));
 });
 
@@ -50,7 +50,7 @@ async function startServer() {
     logger.info("Database tables initialized successfully");
 
     // Create HTTP server
-    const server = app.listen(PORT, '0.0.0.0', () => {
+    const server = app.listen(PORT, "0.0.0.0", () => {
       logger.info(`Server running on port ${PORT}`);
     });
 
