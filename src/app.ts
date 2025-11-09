@@ -50,7 +50,7 @@ async function startServer() {
     logger.info("Database tables initialized successfully");
 
     // Create HTTP server
-    const server = app.listen(PORT, () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       logger.info(`Server running on port ${PORT}`);
     });
 
