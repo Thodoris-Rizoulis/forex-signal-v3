@@ -167,46 +167,6 @@ export class ConsolidationService {
       }
     }
 
-    // Apply proximity-based level filtering: only keep levels within 0.5% of recent price action
-    const recentPrices = hourlyCandles.map(c => c.close);
-    const minRecentPrice = Math.min(...recentPrices);
-    const maxRecentPrice = Math.max(...recentPrices);
-    const proximityThreshold = 0.005; // 0.5%
-    const lowerBound = minRecentPrice * (1 - proximityThreshold);
-    const upperBound = maxRecentPrice * (1 + proximityThreshold);
-
-    const originalLevelsCount = significantLevels.length;
-    significantLevels = significantLevels.filter(level =>
-      level.level >= lowerBound && level.level <= upperBound
-    );
-
-    logger.info(
-      {
-        pairId: pair.id,
-        originalLevels: originalLevelsCount,
-        filteredLevels: significantLevels.length,
-        minRecentPrice,
-        maxRecentPrice,
-        proximityRange: `${lowerBound.toFixed(5)} - ${upperBound.toFixed(5)}`,
-      },
-      "Applied proximity filtering to significant levels"
-    );
-
-    // Check if we still have sufficient levels after filtering
-    if (significantLevels.length < 2) {
-      logger.debug(
-        { pairId: pair.id, filteredLevels: significantLevels.length },
-        "Insufficient levels after proximity filtering"
-      );
-      if (isTesting) {
-        return {
-          consolidations: [],
-          error: "Insufficient levels after proximity filtering",
-        };
-      }
-      return;
-    }
-
     logger.info(
       {
         pairId: pair.id,
@@ -351,7 +311,7 @@ export class ConsolidationService {
     // Convert traps to consolidation candidates
     for (const trap of traps) {
       // Stricter criteria for valid consolidation breakouts (adjusted for forex volatility)
-      const minBreakoutStrengthPercent = 0.05; // Minimum 0.05% breakout strength for forex
+      const minBreakoutStrengthPercent = 0.1; // Minimum 0.1% breakout strength for forex
       const maxTrapDurationPercent = 70; // Trap shouldn't be more than 70% of the period
       const maxTrapRangePercent = 2.0; // Allow up to 2% range for forex consolidation
 

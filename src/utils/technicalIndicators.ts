@@ -614,6 +614,20 @@ function analyzeTrapBetweenLevels(
     }
 
     if (bestTrapStart !== -1) {
+      // Check trap volatility - consolidation shouldn't have excessive movement
+      const trapCandles = candles.slice(bestTrapStart, bestTrapEnd + 1);
+      const trapRange = upperLevel - lowerLevel;
+      const avgRange =
+        trapCandles.reduce((sum, c) => sum + (c.high - c.low), 0) /
+        trapCandles.length;
+      const trapVolatility = avgRange / trapRange; // Average candle range as % of trap range
+
+      // If trap has too much internal volatility, it's not a valid consolidation
+      const maxTrapVolatility = 0.3; // Maximum 30% of trap range per candle on average
+      if (trapVolatility > maxTrapVolatility) {
+        return null; // Invalid trap due to excessive volatility
+      }
+
       // Analyze breakout after trap
       const breakoutAnalysis = analyzeBreakoutAfterTrap(
         candles,
@@ -632,7 +646,8 @@ function analyzeTrapBetweenLevels(
         (trapDuration / candles.length) * 100 + // Duration percentage
         (levelDistancePercent / 5) * 20 + // Level distance (normalized)
         (breakoutStrength > 0 ? 30 : 0) + // Breakout bonus
-        upperLevelTouches * 5 + lowerLevelTouches * 5; // Touch bonus
+        upperLevelTouches * 5 +
+        lowerLevelTouches * 5; // Touch bonus
 
       return {
         upperLevel,
@@ -664,7 +679,7 @@ function analyzeBreakoutAfterTrap(
   upperLevel: number,
   lowerLevel: number
 ): { direction: "UP" | "DOWN" | null; strength: number } {
-  const breakoutCandles = 3; // Look at next 3 candles for breakout confirmation
+  const breakoutCandles = 5; // Look at next 5 candles for breakout confirmation
   let direction: "UP" | "DOWN" | null = null;
   let strength = 0;
 
@@ -675,7 +690,7 @@ function analyzeBreakoutAfterTrap(
   ) {
     const candle = candles[i];
 
-    // Check for upside breakout
+    // Check for upside breakout (close must break above upper level)
     if (candle.close > upperLevel) {
       direction = "UP";
       strength = Math.max(
@@ -684,7 +699,7 @@ function analyzeBreakoutAfterTrap(
       );
     }
 
-    // Check for downside breakout
+    // Check for downside breakout (close must break below lower level)
     if (candle.close < lowerLevel) {
       direction = "DOWN";
       strength = Math.max(
