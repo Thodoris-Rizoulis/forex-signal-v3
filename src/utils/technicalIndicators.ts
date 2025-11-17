@@ -514,6 +514,9 @@ function analyzeTrapBetweenLevels(
   let breakoutDirection: "UP" | "DOWN" | null = null;
   let breakoutStrength = 0;
 
+  let upperLevelTouches = 0;
+  let lowerLevelTouches = 0;
+
   // Scan candles for trap periods
   for (let i = 0; i < candles.length; i++) {
     const candle = candles[i];
@@ -526,6 +529,10 @@ function analyzeTrapBetweenLevels(
       Math.abs(candle.high - lowerLevel) <= levelTolerance ||
       Math.abs(candle.low - lowerLevel) <= levelTolerance ||
       Math.abs(candle.close - lowerLevel) <= levelTolerance;
+
+    // Count touches to levels
+    if (isNearUpperLevel) upperLevelTouches++;
+    if (isNearLowerLevel) lowerLevelTouches++;
 
     // Check if price is within the trap zone (between levels with small tolerance)
     const isWithinTrapZone =
@@ -624,7 +631,8 @@ function analyzeTrapBetweenLevels(
       const trapQuality =
         (trapDuration / candles.length) * 100 + // Duration percentage
         (levelDistancePercent / 5) * 20 + // Level distance (normalized)
-        (breakoutStrength > 0 ? 30 : 0); // Breakout bonus
+        (breakoutStrength > 0 ? 30 : 0) + // Breakout bonus
+        upperLevelTouches * 5 + lowerLevelTouches * 5; // Touch bonus
 
       return {
         upperLevel,
