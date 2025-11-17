@@ -39,6 +39,12 @@ export const config = {
     minDirectionChanges: Number(process.env.MIN_DIRECTION_CHANGES) || 2, // Reduced from 3 - allow detection of tight, high-quality consolidations
     breakoutConfirmationCandles:
       Number(process.env.CONSOLIDATION_BREAKOUT_CONFIRMATION_CANDLES) || 1,
+    // New S/R trap detection settings
+    zigzagDeviationPercent: Number(process.env.ZIGZAG_DEVIATION_PERCENT) || 5, // ZigZag deviation for swing detection
+    minTrapDurationCandles: Number(process.env.MIN_TRAP_DURATION_CANDLES) || 6, // Minimum candles for a valid trap
+    maxLevelAgeDays: Number(process.env.MAX_LEVEL_AGE_DAYS) || 30, // Maximum age for S/R levels
+    maxLevelDistancePercent:
+      Number(process.env.MAX_LEVEL_DISTANCE_PERCENT) || 3, // Maximum distance between levels for trap consideration
   },
   trend: {
     emaShortPercent: 0.2, // 20% of candles for short EMA

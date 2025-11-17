@@ -38,7 +38,7 @@ export class WebSocketService {
       ws.on("message", (message: Buffer) => {
         try {
           const data = JSON.parse(message.toString());
-          logger.info("Received message from client:", data);
+          logger.info({ data }, "Received message from client");
 
           // Handle ping/pong for connection health
           if (data.type === "ping") {

@@ -6,6 +6,10 @@ import { config } from "../config";
 import { getCandlesInDateRange, Candle } from "../utils/candleUtils";
 import { createLogger } from "../utils/logger";
 import { sendTelegramMessage } from "../utils/telegram";
+import {
+  findMajorSignificantLevels,
+  findPriceTrapsBetweenLevels,
+} from "../utils/technicalIndicators";
 
 const logger = createLogger("consolidation-service");
 const STRATEGY_NAME = "Consolidation Breakout";
@@ -90,6 +94,17 @@ export class ConsolidationService {
       fromDate ||
       new Date(actualToDate.getTime() - this.lookbackHours * 60 * 60 * 1000);
 
+    // Get extended data (30 days) for significant levels analysis
+    const extendedFromDate = new Date(
+      actualToDate.getTime() - 30 * 24 * 60 * 60 * 1000
+    );
+    const extendedCandles = await getCandlesInDateRange(
+      pair,
+      extendedFromDate,
+      actualToDate,
+      1
+    );
+
     const hourlyCandles = await getCandlesInDateRange(
       pair,
       actualFromDate,
@@ -113,22 +128,66 @@ export class ConsolidationService {
       return;
     }
 
+    // Find major significant levels from extended data (30 days)
+    let significantLevels = findMajorSignificantLevels(
+      extendedCandles,
+      config.consolidation.zigzagDeviationPercent,
+      8 // maxLevels
+    );
+
+    // If ZigZag fails to find sufficient levels, try alternative approach
+    if (!significantLevels || significantLevels.length < 2) {
+      logger.info(
+        { pairId: pair.id },
+        "ZigZag found insufficient levels, trying alternative approach"
+      );
+
+      const { findAlternativeSignificantLevels } = await import(
+        "../utils/technicalIndicators"
+      );
+      significantLevels = findAlternativeSignificantLevels(extendedCandles);
+
+      if (significantLevels && significantLevels.length >= 2) {
+        logger.info(
+          { pairId: pair.id, levelsFound: significantLevels.length },
+          "Alternative approach found sufficient levels"
+        );
+      } else {
+        logger.debug(
+          { pairId: pair.id, levelsFound: significantLevels?.length || 0 },
+          "Alternative approach also failed - insufficient significant levels for trap analysis"
+        );
+        if (isTesting) {
+          return {
+            consolidations: [],
+            error: "Insufficient significant levels",
+          };
+        }
+        return;
+      }
+    }
+
     logger.info(
       {
         pairId: pair.id,
         candles: hourlyCandles.length,
+        extendedCandles: extendedCandles.length,
+        significantLevels: significantLevels.length,
         fromDate: actualFromDate,
         toDate: actualToDate,
       },
-      "Starting consolidation analysis"
+      "Starting S/R trap-based consolidation analysis"
     );
 
-    // Find consolidation candidates with breakouts
-    const candidates = this.findConsolidationCandidates(hourlyCandles);
+    // Find price traps between significant levels in recent candles
+    const candidates = this.findTrapCandidates(
+      hourlyCandles,
+      significantLevels
+    );
 
     logger.info(
       { pairId: pair.id, candidates: candidates.length },
-      "Found consolidation candidates"
+      "Found trap-based consolidation candidates"
     );
 
     // Add detailed debug for investigation
@@ -226,70 +285,169 @@ export class ConsolidationService {
     // For production, don't return anything
   }
 
-  private findConsolidationCandidates(
-    candles: Candle[]
+  private findTrapCandidates(
+    candles: Candle[],
+    significantLevels: Array<{
+      level: number;
+      significance: number;
+      lastTouch: Date;
+      swingType: "high" | "low";
+    }>
   ): ConsolidationCandidate[] {
     const candidates: ConsolidationCandidate[] = [];
 
-    // New approach: Find consolidation periods based on price oscillation patterns
-    const consolidationPeriods =
-      this.findConsolidationPeriodsByOscillation(candles);
-    const validConsolidations = consolidationPeriods.filter((p) => p.isValid);
-
-    logger.debug(
-      `Found ${validConsolidations.length} valid consolidation periods by oscillation analysis`
+    // Find price traps between significant levels
+    const traps = findPriceTrapsBetweenLevels(
+      candles,
+      significantLevels,
+      config.consolidation.maxLevelDistancePercent,
+      config.consolidation.minTrapDurationCandles
     );
 
-    // For each valid consolidation, check for breakouts
-    for (const consolidation of validConsolidations) {
-      // Check for breakout in candles after consolidation ends
-      const breakoutStartIdx = consolidation.endIdx + 1;
-      const breakoutEndIdx = Math.min(
-        breakoutStartIdx + this.breakoutConfirmationCandles - 1,
-        candles.length - 1
+    logger.debug(
+      `Found ${traps.length} price traps between significant levels`
+    );
+
+    // Convert traps to consolidation candidates
+    for (const trap of traps) {
+      // Stricter criteria for valid consolidation breakouts (adjusted for forex volatility)
+      const minBreakoutStrengthPercent = 0.05; // Minimum 0.05% breakout strength for forex
+      const maxTrapDurationPercent = 70; // Trap shouldn't be more than 70% of the period
+      const maxTrapRangePercent = 2.0; // Allow up to 2% range for forex consolidation
+
+      // Check if breakout is strong enough
+      const breakoutStrengthPercent = trap.breakoutStrength * 100;
+      const hasStrongBreakout =
+        breakoutStrengthPercent >= minBreakoutStrengthPercent;
+
+      // Check if trap duration is reasonable (not the entire period)
+      const trapDurationPercent = (trap.trapDuration / candles.length) * 100;
+      const hasReasonableDuration =
+        trapDurationPercent <= maxTrapDurationPercent;
+
+      // Check if trap shows consolidation characteristics (reasonable range for forex)
+      const trapRangePercent =
+        ((trap.upperLevel - trap.lowerLevel) / trap.lowerLevel) * 100;
+      const hasReasonableRange = trapRangePercent <= maxTrapRangePercent;
+
+      logger.debug(
+        `Evaluating trap: strength=${breakoutStrengthPercent.toFixed(
+          2
+        )}%, duration=${trapDurationPercent.toFixed(
+          1
+        )}%, range=${trapRangePercent.toFixed(2)}%, valid=${
+          hasStrongBreakout && hasReasonableDuration && hasReasonableRange
+        }`
       );
 
-      if (breakoutStartIdx >= candles.length) continue; // No candles after consolidation
+      // Only consider traps with confirmed breakouts, reasonable duration, and range
+      if (
+        hasStrongBreakout &&
+        hasReasonableDuration &&
+        hasReasonableRange &&
+        trap.breakoutDirection
+      ) {
+        // Calculate breakout timestamp from trap end index
+        const breakoutTimestamp =
+          candles[trap.trapEndIndex + 1]?.timestamp ||
+          candles[trap.trapEndIndex].timestamp;
 
-      const breakoutCandles = candles.slice(
-        breakoutStartIdx,
-        breakoutEndIdx + 1
-      );
-      const breakout = this.detectBreakout(
-        breakoutCandles,
-        consolidation.support,
-        consolidation.resistance
-      );
+        // Use the breakout candle (next candle after trap)
+        const breakoutCandle =
+          candles[trap.trapEndIndex + 1] || candles[trap.trapEndIndex];
 
-      if (breakout) {
         candidates.push({
-          support: consolidation.support,
-          resistance: consolidation.resistance,
-          startIdx: consolidation.startIdx,
-          endIdx: consolidation.endIdx,
-          breakoutDirection: breakout.direction,
-          breakoutTimestamp: breakout.timestamp,
-          breakoutCandle: breakout.candle,
+          support: trap.lowerLevel,
+          resistance: trap.upperLevel,
+          startIdx: trap.trapStartIndex,
+          endIdx: trap.trapEndIndex,
+          breakoutDirection: trap.breakoutDirection,
+          breakoutTimestamp: breakoutTimestamp,
+          breakoutCandle: breakoutCandle,
         });
 
         logger.debug(
-          `Found breakout candidate: ${
-            breakout.direction
-          } breakout at ${breakout.timestamp.toISOString()}, range: ${consolidation.support.toFixed(
+          `Found trap breakout candidate: ${
+            trap.breakoutDirection
+          } breakout at ${breakoutTimestamp.toISOString()}, trap range: ${trap.lowerLevel.toFixed(
             4
-          )}-${consolidation.resistance.toFixed(
-            4
-          )} (${consolidation.rangePercent.toFixed(2)}%)`
+          )}-${trap.upperLevel.toFixed(4)}, duration: ${
+            trap.trapDuration
+          } candles, quality: ${trap.trapQuality.toFixed(2)}`
         );
       }
     }
 
-    // Remove duplicates (prefer consolidations with cleaner breakouts)
-    const uniqueCandidates = this.deduplicateCandidates_2(candidates);
+    // Remove duplicates (prefer traps with higher quality)
+    const uniqueCandidates = this.deduplicateTrapCandidates(candidates);
     logger.info(
-      `Consolidation candidates: ${uniqueCandidates.length} unique from ${candidates.length} total`
+      `Trap candidates: ${uniqueCandidates.length} unique from ${candidates.length} total`
     );
     return uniqueCandidates;
+  }
+
+  /**
+   * Remove duplicate trap candidates, preferring higher quality traps
+   */
+  private deduplicateTrapCandidates(
+    candidates: ConsolidationCandidate[]
+  ): ConsolidationCandidate[] {
+    logger.debug(`Deduplicating ${candidates.length} trap candidates`);
+
+    // Sort by trap quality (we'll need to calculate this based on breakout strength and trap duration)
+    const candidatesWithScores = candidates.map((candidate) => ({
+      ...candidate,
+      qualityScore: this.calculateTrapQuality(candidate),
+    }));
+
+    // Sort by quality score (highest first)
+    candidatesWithScores.sort((a, b) => b.qualityScore - a.qualityScore);
+
+    const unique: ConsolidationCandidate[] = [];
+    const usedRanges: { start: number; end: number }[] = [];
+
+    for (const candidate of candidatesWithScores) {
+      const overlaps = usedRanges.some(
+        (range) =>
+          candidate.startIdx <= range.end && candidate.endIdx >= range.start
+      );
+
+      if (!overlaps) {
+        unique.push(candidate);
+        usedRanges.push({ start: candidate.startIdx, end: candidate.endIdx });
+      }
+    }
+
+    logger.debug(
+      `Trap deduplication result: ${unique.length} unique from ${candidates.length} total`
+    );
+    return unique;
+  }
+
+  /**
+   * Calculate quality score for a trap candidate
+   */
+  private calculateTrapQuality(candidate: ConsolidationCandidate): number {
+    const range = candidate.resistance - candidate.support;
+    const rangePercent = (range / candidate.support) * 100;
+    const duration = candidate.endIdx - candidate.startIdx + 1;
+
+    // Factor 1: Range tightness (prefer tighter ranges for traps)
+    const rangeScore = Math.max(0, 1 - rangePercent / 2); // Best at 0%, worse as it increases
+
+    // Factor 2: Duration (prefer longer traps for more significance)
+    const durationScore = Math.min(1, duration / 24); // Max score at 24+ hours
+
+    // Factor 3: Breakout strength (assume strong breakouts are better)
+    const breakoutScore = 0.5; // Neutral for now, could be enhanced with breakout analysis
+
+    // Weighted combination
+    const qualityScore =
+      rangeScore * 0.4 + // 40% - tightness
+      durationScore * 0.4 + // 40% - duration
+      breakoutScore * 0.2; // 20% - breakout quality
+
+    return Math.max(0, Math.min(1, qualityScore));
   }
 
   /**

@@ -242,7 +242,10 @@ export class TestingService {
         true // isTesting = true, so it will create consolidations and return them
       );
 
-      const consolidations = consolidationAnalysis?.consolidations || [];
+      const consolidations =
+        consolidationAnalysis && "consolidations" in consolidationAnalysis
+          ? consolidationAnalysis.consolidations || []
+          : [];
 
       // 5. Get opportunities created during consolidation analysis
       // The new ConsolidationService creates opportunities automatically for matching breakouts
