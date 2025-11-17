@@ -116,9 +116,7 @@ export function TradingAssetsManagement() {
   const loadAvailableCurrencies = async () => {
     try {
       setLoadingAvailable(true);
-      const response = await fetch(
-        "/api/currencies/available"
-      );
+      const response = await fetch("/api/currencies/available");
       if (!response.ok) throw new Error("Failed to fetch available currencies");
       const data = await response.json();
       setAvailableCurrencies(Object.keys(data.currencies || {}));
@@ -184,12 +182,9 @@ export function TradingAssetsManagement() {
 
   const handleCurrencyDelete = async (id: number) => {
     try {
-      const response = await fetch(
-        `/api/currencies/${id}`,
-        {
-          method: "DELETE",
-        }
-      );
+      const response = await fetch(`/api/currencies/${id}`, {
+        method: "DELETE",
+      });
 
       if (!response.ok) throw new Error("Failed to delete currency");
 
@@ -206,9 +201,7 @@ export function TradingAssetsManagement() {
     e.preventDefault();
 
     try {
-      const url = editingPair
-        ? `/api/pairs/${editingPair.id}`
-        : "/api/pairs";
+      const url = editingPair ? `/api/pairs/${editingPair.id}` : "/api/pairs";
 
       const method = editingPair ? "PUT" : "POST";
 

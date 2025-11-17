@@ -147,12 +147,9 @@ export function StrategiesManagement() {
 
   const handleDelete = async (id: number) => {
     try {
-      const response = await fetch(
-        `/api/strategies/${id}`,
-        {
-          method: "DELETE",
-        }
-      );
+      const response = await fetch(`/api/strategies/${id}`, {
+        method: "DELETE",
+      });
 
       if (!response.ok) throw new Error("Failed to delete strategy");
 
